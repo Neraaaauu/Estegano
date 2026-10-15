@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Revelar imagen oculta</title>
+<style>
+:root{--bg:#f3f1ec;--fg:#1c1b19;--mut:#6b675f;--card:#fff;--acc:#c2410c;--bd:#d9d5cc;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15140f;--fg:#efece4;--mut:#9a958a;--card:#1f1d17;--acc:#fb923c;--bd:#37332a}}
+:root[data-theme="dark"]{--bg:#15140f;--fg:#efece4;--mut:#9a958a;--card:#1f1d17;--acc:#fb923c;--bd:#37332a}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 Georgia,"Times New Roman",serif;padding:24px 18px 40px}
+main{max-width:520px;margin:0 auto}
+h1{font-size:30px;line-height:1.1;margin:8px 0 10px;letter-spacing:-.5px}
+p{color:var(--mut);margin:0 0 20px}
+label.pick{position:relative;display:block;border:2px dashed var(--bd);border-radius:14px;padding:28px 16px;text-align:center;background:var(--card);cursor:pointer}
+input{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:0;cursor:pointer}
+canvas{display:none;width:100%;height:auto;border-radius:10px;border:1px solid var(--bd);margin-top:20px;background:#fff}
+button{display:none;margin-top:16px;width:100%;padding:14px;font:inherit;font-weight:700;color:#fff;background:var(--acc);border:0;border-radius:12px}
+#msg{margin-top:14px;color:var(--mut);font-size:14px}
+#o{display:none;width:100%;border-radius:10px;border:1px solid var(--bd);margin-top:20px}
+</style>
+</head>
+<body>
+<main>
+<h1>Revelar imagen oculta</h1>
+<p>Sube el PNG con la imagen escondida (sin recomprimir). Todo ocurre en tu teléfono, nada se envía a ningún servidor.</p>
+<label class="pick"><span id="lbl">Toca para elegir gatos_oculta.png</span>
+<input type="file" id="f" accept="image/*"></label>
+<canvas id="c"></canvas>
+<img id="o" alt="Imagen revelada">
+
+<div id="msg"></div>
+</main>
+<script>
+const f=document.getElementById('f'),c=document.getElementById('c'),o=document.getElementById('o'),m=document.getElementById('msg'),l=document.getElementById('lbl');
