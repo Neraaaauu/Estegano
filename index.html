@@ -3,35 +3,180 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Revelar imagen oculta</title>
+<title>Esteganografía LSB - Ocultar y Revelar</title>
 <style>
-:root{--bg:#f3f1ec;--fg:#1c1b19;--mut:#6b675f;--card:#fff;--acc:#c2410c;--bd:#d9d5cc;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root{--bg:#f3f1ec;--fg:#1c1b19;--mut:#6b675f;--card:#fff;--acc:#c2410c;--bd:#d9d5cc;box-sizing:border-box}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15140f;--fg:#efece4;--mut:#9a958a;--card:#1f1d17;--acc:#fb923c;--bd:#37332a}}
-:root[data-theme="dark"]{--bg:#15140f;--fg:#efece4;--mut:#9a958a;--card:#1f1d17;--acc:#fb923c;--bd:#37332a}
 *{box-sizing:border-box}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 Georgia,"Times New Roman",serif;padding:24px 18px 40px}
 main{max-width:520px;margin:0 auto}
-h1{font-size:30px;line-height:1.1;margin:8px 0 10px;letter-spacing:-.5px}
+h1{font-size:28px;line-height:1.1;margin:8px 0 10px;letter-spacing:-.5px}
 p{color:var(--mut);margin:0 0 20px}
-label.pick{position:relative;display:block;border:2px dashed var(--bd);border-radius:14px;padding:28px 16px;text-align:center;background:var(--card);cursor:pointer}
-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:0;cursor:pointer}
-canvas{display:none;width:100%;height:auto;border-radius:10px;border:1px solid var(--bd);margin-top:20px;background:#fff}
-button{display:none;margin-top:16px;width:100%;padding:14px;font:inherit;font-weight:700;color:#fff;background:var(--acc);border:0;border-radius:12px}
+.tabs{display:flex;gap:8px;margin-bottom:20px}
+.tabs button{display:block;margin:0;background:var(--card);color:var(--fg);border:1px solid var(--bd);cursor:pointer}
+.tabs button.active{background:var(--acc);color:#fff;border-color:var(--acc)}
+label.pick{position:relative;display:block;border:2px dashed var(--bd);border-radius:14px;padding:24px 16px;text-align:center;background:var(--card);cursor:pointer;margin-bottom:12px}
+input[type="file"]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+canvas{display:none}
+button.action{display:block;margin-top:16px;width:100%;padding:14px;font:inherit;font-weight:700;color:#fff;background:var(--acc);border:0;border-radius:12px;cursor:pointer}
 #msg{margin-top:14px;color:var(--mut);font-size:14px}
-#o{display:none;width:100%;border-radius:10px;border:1px solid var(--bd);margin-top:20px}
+img.out{display:none;width:100%;border-radius:10px;border:1px solid var(--bd);margin-top:20px}
+.hidden{display:none}
 </style>
 </head>
 <body>
 <main>
-<h1>Revelar imagen oculta</h1>
-<p>Sube el PNG con la imagen escondida (sin recomprimir). Todo ocurre en tu teléfono, nada se envía a ningún servidor.</p>
-<label class="pick"><span id="lbl">Toca para elegir gatos_oculta.png</span>
-<input type="file" id="f" accept="image/*"></label>
-<canvas id="c"></canvas>
-<img id="o" alt="Imagen revelada">
+  <div class="tabs">
+    <button id="tabRev" class="active" onclick="setMode('rev')">Revelar PNG</button>
+    <button id="tabHide" onclick="setMode('hide')">Crear PNG oculto</button>
+  </div>
 
-<div id="msg"></div>
+  <!-- MODO REVELAR -->
+  <section id="secRev">
+    <h1>Revelar imagen oculta</h1>
+    <p>Sube el PNG con la imagen escondida (sin recomprimir). Todo ocurre en tu navegador.</p>
+    <label class="pick">
+      <span id="lbl">Toca para elegir el archivo .png</span>
+      <input type="file" id="f" accept="image/png,image/*">
+    </label>
+  </section>
+
+  <!-- MODO OCULTAR -->
+  <section id="secHide" class="hidden">
+    <h1>Ocultar imagen (LSB)</h1>
+    <p>Sustituye los 4 bits menos significativos de la imagen base por los 4 más significativos de la imagen secreta.</p>
+    <label class="pick">
+      <span id="lblBase">1. Elige la imagen visible (Portadora)</span>
+      <input type="file" id="fBase" accept="image/*">
+    </label>
+    <label class="pick">
+      <span id="lblSec">2. Elige la imagen a ocultar (Secreta)</span>
+      <input type="file" id="fSec" accept="image/*">
+    </label>
+    <button class="action" id="btnCombine">Combinar y generar PNG</button>
+  </section>
+
+  <div id="msg"></div>
+  <img id="o" class="out" alt="Resultado">
+  <a id="dl" style="display:none;text-align:center;margin-top:12px;color:var(--acc);font-weight:bold" download="gatos_oculta.png">Descargar PNG resultante</a>
+  <canvas id="c"></canvas>
 </main>
+
 <script>
-const f=document.getElementById('f'),c=document.getElementById('c'),o=document.getElementById('o'),m=document.getElementById('msg'),l=document.getElementById('lbl');
+const f = document.getElementById('f'),
+      fBase = document.getElementById('fBase'),
+      fSec = document.getElementById('fSec'),
+      btnCombine = document.getElementById('btnCombine'),
+      c = document.getElementById('c'),
+      ctx = c.getContext('2d', { willReadFrequently: true }),
+      o = document.getElementById('o'),
+      dl = document.getElementById('dl'),
+      m = document.getElementById('msg'),
+      l = document.getElementById('lbl');
+
+function setMode(mode) {
+  document.getElementById('secRev').classList.toggle('hidden', mode !== 'rev');
+  document.getElementById('secHide').classList.toggle('hidden', mode !== 'hide');
+  document.getElementById('tabRev').classList.toggle('active', mode === 'rev');
+  document.getElementById('tabHide').classList.toggle('active', mode === 'hide');
+  o.style.display = 'none';
+  dl.style.display = 'none';
+  m.textContent = '';
+}
+
+function loadImg(file) {
+  return new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = rej;
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// 1. Lógica para REVELAR los 4 bits menos significativos
+f.addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  l.textContent = file.name;
+  m.textContent = 'Extrayendo bits menos significativos...';
+
+  try {
+    const img = await loadImg(file);
+    c.width = img.width;
+    c.height = img.height;
+    ctx.drawImage(img, 0, 0);
+
+    const imgData = ctx.getImageData(0, 0, c.width, c.height);
+    const d = imgData.data;
+
+    for (let i = 0; i < d.length; i += 4) {
+      // Toma los 4 bits menos significativos (& 0x0F) y los desplaza a los más significativos (<< 4)
+      d[i]     = (d[i] & 0x0F) << 4;     // R
+      d[i + 1] = (d[i + 1] & 0x0F) << 4; // G
+      d[i + 2] = (d[i + 2] & 0x0F) << 4; // B
+      d[i + 3] = 255;                    // Alpha
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+    o.src = c.toDataURL('image/png');
+    o.style.display = 'block';
+    dl.style.display = 'none';
+    m.textContent = 'Imagen revelada correctamente.';
+  } catch (err) {
+    m.textContent = 'Error al procesar la imagen.';
+  }
+});
+
+// 2. Lógica para OCULTAR una imagen dentro de otra
+fBase.addEventListener('change', e => { if(e.target.files[0]) document.getElementById('lblBase').textContent = e.target.files[0].name; });
+fSec.addEventListener('change', e => { if(e.target.files[0]) document.getElementById('lblSec').textContent = e.target.files[0].name; });
+
+btnCombine.addEventListener('click', async () => {
+  if (!fBase.files[0] || !fSec.files[0]) {
+    m.textContent = 'Selecciona ambas imágenes primero.';
+    return;
+  }
+  m.textContent = 'Combinando bits...';
+
+  try {
+    const imgBase = await loadImg(fBase.files[0]);
+    const imgSec = await loadImg(fSec.files[0]);
+
+    c.width = imgBase.width;
+    c.height = imgBase.height;
+
+    // Obtener píxeles de la imagen secreta escalada al tamaño de la base
+    ctx.drawImage(imgSec, 0, 0, c.width, c.height);
+    const secData = ctx.getImageData(0, 0, c.width, c.height).data;
+
+    // Obtener píxeles de la imagen portadora (base)
+    ctx.drawImage(imgBase, 0, 0, c.width, c.height);
+    const baseImgData = ctx.getImageData(0, 0, c.width, c.height);
+    const baseData = baseImgData.data;
+
+    for (let i = 0; i < baseData.length; i += 4) {
+      // Mantiene los 4 bits altos de la base (& 0xF0) e inserta los 4 bits altos de la secreta (>> 4)
+      baseData[i]     = (baseData[i] & 0xF0) | (secData[i] >> 4);
+      baseData[i + 1] = (baseData[i + 1] & 0xF0) | (secData[i + 1] >> 4);
+      baseData[i + 2] = (baseData[i + 2] & 0xF0) | (secData[i + 2] >> 4);
+      baseData[i + 3] = 255;
+    }
+
+    ctx.putImageData(baseImgData, 0, 0);
+    const url = c.toDataURL('image/png');
+    o.src = url;
+    o.style.display = 'block';
+    dl.href = url;
+    dl.style.display = 'block';
+    m.textContent = '¡Listo! Descarga el PNG (no lo envíes por WhatsApp o redes que compriman a JPG).';
+  } catch (err) {
+    m.textContent = 'Error al combinar las imágenes.';
+  }
+});
+</script>
+</body>
+</html>
